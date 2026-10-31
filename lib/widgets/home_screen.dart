@@ -22,7 +22,7 @@ class HomeScreen extends StatelessWidget {
                 maxCrossAxisExtent: 260,
                 mainAxisSpacing: 14,
                 crossAxisSpacing: 14,
-                childAspectRatio: 0.92,
+                mainAxisExtent: 240,
               ),
               itemCount: features.length,
               itemBuilder: (_, i) => _FeatureCard(feature: features[i]),
