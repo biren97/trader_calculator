@@ -10,6 +10,10 @@ void main() {
   });
 
   testWidgets('stock average calculates a report', (tester) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(const TechToolkitApp());
     await tester.tap(find.text('Stock Average'));
     await tester.pumpAndSettle();
@@ -19,7 +23,6 @@ void main() {
     await tester.enterText(fields.at(1), '10');
     await tester.enterText(fields.at(2), '80');
     await tester.enterText(fields.at(3), '10');
-    await tester.ensureVisible(find.text('Calculate'));
     await tester.tap(find.text('Calculate'));
     await tester.pumpAndSettle();
 
