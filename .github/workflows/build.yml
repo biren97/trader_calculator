@@ -1,0 +1,73 @@
+name: Build
+
+# Reusable: analyse, test and build the app. Called by ci.yml and by the
+# promotion workflows.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch or commit to build
+        type: string
+        required: true
+      target:
+        description: debug | staging | production
+        type: string
+        default: debug
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # The repo keeps only Dart sources until android/ is committed. If it is
+      # missing, generate it without touching our own files.
+      - name: Generate Android platform files
+        run: |
+          if [ ! -d android ]; then
+            mkdir -p /tmp/keep
+            cp -r lib test pubspec.yaml analysis_options.yaml /tmp/keep/
+            flutter create --platforms=android --org com.techtools --project-name tech_toolkit .
+            rm -rf lib test
+            cp -r /tmp/keep/lib /tmp/keep/test .
+            cp /tmp/keep/pubspec.yaml /tmp/keep/analysis_options.yaml .
+            sed -i 's/android:label="[^"]*"/android:label="Tech Toolkit"/' android/app/src/main/AndroidManifest.xml
+          fi
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Build debug APK
+        if: inputs.target == 'debug'
+        run: flutter build apk --debug --build-number=${{ github.run_number }}
+
+      - name: Build staging APK
+        if: inputs.target == 'staging'
+        run: flutter build apk --release --build-number=${{ github.run_number }}
+
+      - name: Build production bundle and APK
+        if: inputs.target == 'production'
+        run: |
+          flutter build appbundle --release --build-number=${{ github.run_number }}
+          flutter build apk --release --build-number=${{ github.run_number }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tech-toolkit-${{ inputs.target }}-${{ github.run_number }}
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+          if-no-files-found: error

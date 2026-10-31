@@ -1,0 +1,37 @@
+name: Promote staging to production
+
+# Manual only: Actions tab > "Promote staging to production" > Run workflow.
+# The job also waits on the "production-approval" environment; add required
+# reviewers there (Settings > Environments) for an extra confirmation click.
+# Fast-forward only, so main ends up byte-for-byte equal to the tested staging.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: promote-production
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: production-approval
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fast-forward main to staging
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --ff-only origin/staging
+          git push origin main
+
+  build:
+    needs: promote
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: main
+      target: production
